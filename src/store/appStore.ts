@@ -24,6 +24,7 @@ interface AppState {
   currentRole: UserRole;
   selectedDepartment: string;
   completedChecklistItems: Record<string, boolean>;
+  completedWeeklyTasks: Record<string, boolean>;
   notifications: Notification[];
   isAuthenticated: boolean;
   user: { name: string; email: string; role: UserRole; department?: string } | null;
@@ -34,6 +35,7 @@ interface AppState {
   setRole: (role: UserRole) => void;
   setDepartment: (dept: string) => void;
   toggleChecklistItem: (dept: string, criterionId: number, itemId: string) => void;
+  toggleWeeklyTask: (dept: string, taskId: string) => void;
   addNotification: (notification: Omit<Notification, 'id' | 'timestamp' | 'read'>) => void;
   markAsRead: (id: string) => void;
   clearAllNotifications: () => void;
@@ -47,13 +49,14 @@ export const useAppStore = create<AppState>((set) => ({
   currentRole: 'IQAC Coordinator', // Defaulting to the orchestrator of NAAC
   selectedDepartment: 'All Departments',
   completedChecklistItems: {},
+  completedWeeklyTasks: {},
   notifications: [],
   isAuthenticated: false,
   user: null,
   login: (email, role) => set(() => {
     let dept = 'All Departments';
-    if (role === 'HOD' || role === 'Faculty') {
-      if (email.includes('.cse@') || email.includes('aditya@')) {
+    if (role === 'HOD' || role === 'Faculty' || role === 'Student') {
+      if (email.includes('.cse@') || email.includes('aditya@') || email.includes('student.union@')) {
         dept = 'Computer Science';
       } else if (email.includes('.ece@')) {
         dept = 'Electronics';
@@ -111,6 +114,16 @@ export const useAppStore = create<AppState>((set) => ({
       next[key] = true;
     }
     return { completedChecklistItems: next };
+  }),
+  toggleWeeklyTask: (dept, taskId) => set((state) => {
+    const key = `${dept}_${taskId}`;
+    const next = { ...state.completedWeeklyTasks };
+    if (next[key]) {
+      delete next[key];
+    } else {
+      next[key] = true;
+    }
+    return { completedWeeklyTasks: next };
   }),
   setRole: (role) => set((state) => {
     let dept = state.selectedDepartment;
