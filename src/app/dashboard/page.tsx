@@ -30,13 +30,53 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '@/store/appStore';
 
-// Mock Data
-const timelineData = [
-  { month: 'Jan', progress: 0 },
-  { month: 'Feb', progress: 0 },
-  { month: 'Mar', progress: 0 },
-  { month: 'Apr', progress: 0 },
-  { month: 'May', progress: 0 },
+// Mock Data for Timeline & Milestones
+const WEEKLY_TASKS: Record<string, { id: string; text: string; category: string }[]> = {
+  'IQAC Coordinator': [
+    { id: 'iqac-w1', text: 'Review Criterion 1 Curriculum Feedback reports', category: 'Criterion 1' },
+    { id: 'iqac-w2', text: 'Verify Criterion 2 Teaching-Learning evaluations', category: 'Criterion 2' },
+    { id: 'iqac-w3', text: 'Compile Criterion 3 Research publication indices', category: 'Criterion 3' },
+    { id: 'iqac-w4', text: 'Audit Criterion 4 Infrastructure statement balance', category: 'Criterion 4' },
+  ],
+  'Principal': [
+    { id: 'prin-w1', text: 'Sign off on Curricular Aspects draft (Criterion 1)', category: 'Criterion 1' },
+    { id: 'prin-w2', text: 'Review budget allocations for Library Resources (Criterion 4)', category: 'Criterion 4' },
+    { id: 'prin-w3', text: 'Approve Student Welfare policies (Criterion 5)', category: 'Criterion 5' },
+    { id: 'prin-w4', text: 'Host Mock Audit meeting with external assessors', category: 'General' },
+  ],
+  'HOD': [
+    { id: 'hod-w1', text: 'Verify department curriculum load maps', category: 'Criterion 1' },
+    { id: 'hod-w2', text: 'Verify faculty teaching certifications', category: 'Criterion 2' },
+    { id: 'hod-w3', text: 'Verify UGC CARE publication list for department', category: 'Criterion 3' },
+    { id: 'hod-w4', text: 'Approve student feedback action plan', category: 'Criterion 5' },
+  ],
+  'Faculty': [
+    { id: 'fac-w1', text: 'Upload syllabus mapping documents', category: 'Criterion 1' },
+    { id: 'fac-w2', text: 'Update student mentoring records', category: 'Criterion 5' },
+    { id: 'fac-w3', text: 'Submit research paper PDFs to Document Hub', category: 'Criterion 3' },
+    { id: 'fac-w4', text: 'Fill self-appraisal form', category: 'Criterion 2' },
+  ],
+  'College Admin': [
+    { id: 'adm-w1', text: 'Back up all NAAC evidence documents to cloud', category: 'System' },
+    { id: 'adm-w2', text: 'Verify system access permissions for new faculty', category: 'System' },
+    { id: 'adm-w3', text: 'Export SSR draft compilation logs', category: 'System' },
+    { id: 'adm-w4', text: 'Conduct platform security audit', category: 'System' },
+  ],
+  'Student': [
+    { id: 'stud-w1', text: 'Submit Student Satisfaction Survey (SSS)', category: 'Criterion 5' },
+    { id: 'stud-w2', text: 'Verify placement interest profiles', category: 'Criterion 5' },
+    { id: 'stud-w3', text: 'Submit co-curricular participation proofs', category: 'Criterion 5' },
+    { id: 'stud-w4', text: 'Review academic feedback reports', category: 'Criterion 1' },
+  ],
+};
+
+const MONTHLY_MILESTONES = [
+  { month: 'Month 1', title: 'Curricular Planning & Feedback Collection', status: 'Completed', detail: 'Syllabus design alignment, feedback from students & alumni compiled for Criterion 1.' },
+  { month: 'Month 2', title: 'Teaching-Learning & Eval. Verification', status: 'Completed', detail: 'Student satisfaction indices, faculty workload logs, internal exam assessments verified for Criterion 2.' },
+  { month: 'Month 3', title: 'Research & Extensions Documentation', status: 'In Progress', detail: 'UGC CARE publication PDFs uploaded, research grant statements audited, extension activities proofed for Criterion 3.' },
+  { month: 'Month 4', title: 'Infrastructure & Library Audit', status: 'In Progress', detail: 'Laboratory equipment logs, library book count audit, campus facility reports verified for Criterion 4.' },
+  { month: 'Month 5', title: 'Student Support & Progression Tracking', status: 'Awaiting', detail: 'Placement tracking logs, student mentoring reports, scholarship certificates reviewed for Criterion 5.' },
+  { month: 'Month 6', title: 'Governance, Values & SSR Final Compilation', status: 'Awaiting', detail: 'Best practices summaries, governance logs, and final SSR draft generated for Criterion 6 & 7.' },
 ];
 
 const criteriaBaseList = [
@@ -52,7 +92,15 @@ const criteriaBaseList = [
 const DEPARTMENTS = ['Computer Science', 'Electronics', 'Mechanical', 'AIML', 'AIDS'];
 
 export default function Dashboard() {
-  const { currentRole, selectedDepartment, completedChecklistItems } = useAppStore();
+  const { 
+    currentRole, 
+    selectedDepartment, 
+    completedChecklistItems,
+    completedWeeklyTasks,
+    toggleWeeklyTask
+  } = useAppStore();
+
+  const [activeTimelineTab, setActiveTimelineTab] = React.useState<'weekly' | 'monthly'>('weekly');
 
   // Helper to calculate progress for a given criterion and department
   const getCriterionProgress = (criterionId: number, dept: string) => {
@@ -99,6 +147,33 @@ export default function Dashboard() {
   // Quick stats calculations
   const totalVerified = criteriaSummary.filter(c => c.status === 'Verified').length;
   const pendingReview = criteriaSummary.filter(c => c.status === 'In Review').length;
+
+  // Dynamic 6-month progress history based on actual completed checklist items
+  const totalCompletedChecklist = Object.keys(completedChecklistItems).filter(key => {
+    if (selectedDepartment !== 'All Departments') {
+      return key.startsWith(`${selectedDepartment}_`) && completedChecklistItems[key];
+    }
+    return completedChecklistItems[key];
+  }).length;
+
+  const dynamicTimelineData = React.useMemo(() => {
+    const maxItems = selectedDepartment === 'All Departments' ? 140 : 28;
+    const currentProgressPercentage = maxItems > 0 ? Math.round((totalCompletedChecklist / maxItems) * 100) : 0;
+    
+    return [
+      { month: 'Jan', progress: Math.min(10, currentProgressPercentage) },
+      { month: 'Feb', progress: Math.min(25, currentProgressPercentage) },
+      { month: 'Mar', progress: Math.min(48, currentProgressPercentage) },
+      { month: 'Apr', progress: Math.min(72, currentProgressPercentage) },
+      { month: 'May (Current)', progress: currentProgressPercentage },
+      { month: 'Jun (Target)', progress: Math.max(90, currentProgressPercentage) },
+    ];
+  }, [totalCompletedChecklist, selectedDepartment]);
+
+  const deptKey = selectedDepartment;
+  const currentWeeklyTasks = WEEKLY_TASKS[currentRole] || WEEKLY_TASKS['Faculty'];
+  const completedWeeklyCount = currentWeeklyTasks.filter(t => completedWeeklyTasks[`${deptKey}_${t.id}`]).length;
+  const weeklyProgress = Math.round((completedWeeklyCount / currentWeeklyTasks.length) * 100);
 
   const isAllDepts = selectedDepartment === 'All Departments';
   const departmentComplianceData = isAllDepts
@@ -272,6 +347,7 @@ export default function Dashboard() {
                     borderRadius: '8px',
                     fontSize: '12px' 
                   }} 
+                  cursor={false}
                 />
                 <Bar dataKey="compliance" name="Current %" fill="#2563eb" radius={[4, 4, 0, 0]} barSize={24} />
                 <Bar dataKey="target" name="Target %" fill="rgba(37, 99, 235, 0.2)" radius={[4, 4, 0, 0]} barSize={24} />
@@ -363,6 +439,163 @@ export default function Dashboard() {
             <span>Run Complete AI Audit</span>
             <ArrowUpRight size={14} />
           </button>
+        </div>
+      </div>
+
+      {/* ACCREDITATION TIMELINE & PERIODIC ACTION HUB */}
+      <div className="glass-card p-6 rounded-2xl w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* LEFT COLUMN: ACTIONS & ROADMAP */}
+        <div className="lg:col-span-2 flex flex-col justify-between">
+          <div>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-border/40 pb-4 mb-4 gap-2">
+              <div className="space-y-1">
+                <h2 className="font-semibold text-sm flex items-center gap-2">
+                  <Clock size={16} className="text-primary" />
+                  Accreditation Timeline & Action Hub
+                </h2>
+                <p className="text-[10px] text-muted-foreground">Manage periodic compliance activities and timeline milestones.</p>
+              </div>
+              <div className="flex bg-muted/60 p-1 rounded-xl border border-border/20 text-xs shrink-0 self-end sm:self-auto">
+                <button 
+                  onClick={() => setActiveTimelineTab('weekly')}
+                  className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 ${
+                    activeTimelineTab === 'weekly' 
+                      ? 'bg-primary text-primary-foreground shadow-md' 
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Weekly Action Plan
+                </button>
+                <button 
+                  onClick={() => setActiveTimelineTab('monthly')}
+                  className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 ${
+                    activeTimelineTab === 'monthly' 
+                      ? 'bg-primary text-primary-foreground shadow-md' 
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Monthly Roadmap
+                </button>
+              </div>
+            </div>
+
+            {activeTimelineTab === 'weekly' ? (
+              <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-primary/5 border border-primary/10 p-3.5 rounded-2xl">
+                  <div className="space-y-1">
+                    <span className="text-xs font-semibold">Weekly Target Progress</span>
+                    <p className="text-[10px] text-muted-foreground">Complete audits to keep the department on schedule.</p>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className="text-sm font-bold">{completedWeeklyCount} of {currentWeeklyTasks.length} Done</span>
+                    <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
+                      <div className="h-full bg-primary rounded-full transition-all duration-300" style={{ width: `${weeklyProgress}%` }} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {currentWeeklyTasks.map((task) => {
+                    const isCompleted = completedWeeklyTasks[`${deptKey}_${task.id}`];
+                    return (
+                      <div 
+                        key={task.id}
+                        onClick={() => toggleWeeklyTask(deptKey, task.id)}
+                        className={`p-3.5 rounded-2xl border transition-all duration-200 cursor-pointer flex items-start gap-3 ${
+                          isCompleted 
+                            ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-500 dark:text-emerald-400' 
+                            : 'bg-muted/40 border-border/40 hover:border-border text-foreground'
+                        }`}
+                      >
+                        <div className={`w-4 h-4 rounded mt-0.5 border flex items-center justify-center shrink-0 transition-colors ${
+                          isCompleted 
+                            ? 'bg-emerald-500 border-emerald-500 text-white' 
+                            : 'border-muted-foreground/30 hover:border-muted-foreground'
+                        }`}>
+                          {isCompleted && <CheckCircle2 size={12} className="stroke-[3]" />}
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs font-medium leading-tight">{task.text}</p>
+                          <span className={`text-[9px] font-semibold px-2 py-0.5 rounded-full ${
+                            isCompleted ? 'bg-emerald-500/10 text-emerald-500' : 'bg-muted text-muted-foreground'
+                          }`}>
+                            {task.category}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-[260px] overflow-y-auto pr-1">
+                {MONTHLY_MILESTONES.map((milestone, idx) => (
+                  <div key={idx} className="flex gap-4 items-start relative group">
+                    {/* Vertical connector line */}
+                    {idx < MONTHLY_MILESTONES.length - 1 && (
+                      <div className="absolute left-[15px] top-6 bottom-0 w-[2px] bg-border/40 group-hover:bg-border/60 transition-colors" />
+                    )}
+                    <div className={`w-8 h-8 rounded-full border flex items-center justify-center text-xs font-bold shrink-0 z-10 transition-colors ${
+                      milestone.status === 'Completed' ? 'bg-emerald-500/10 border-emerald-500 text-emerald-500' :
+                      milestone.status === 'In Progress' ? 'bg-amber-500/10 border-amber-500 text-amber-500 animate-pulse' :
+                      'bg-muted border-border/40 text-muted-foreground'
+                    }`}>
+                      {idx + 1}
+                    </div>
+                    <div className="flex-1 space-y-1 pb-4 border-b border-border/20 last:border-b-0 last:pb-0">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                        <span className="text-xs font-bold text-foreground leading-none">{milestone.month}: {milestone.title}</span>
+                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full w-fit ${
+                          milestone.status === 'Completed' ? 'bg-emerald-500/10 text-emerald-500' :
+                          milestone.status === 'In Progress' ? 'bg-amber-500/10 text-amber-500' :
+                          'bg-muted text-muted-foreground'
+                        }`}>
+                          {milestone.status}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground leading-normal">{milestone.detail}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* RIGHT COLUMN: RECHARTS AREA CHART */}
+        <div className="flex flex-col justify-between">
+          <div className="border-b border-border/40 pb-4 mb-4">
+            <h2 className="font-semibold text-sm flex items-center gap-2">
+              <TrendingUp size={16} className="text-primary" />
+              6-Month Progress Trend
+            </h2>
+            <p className="text-[10px] text-muted-foreground">Accreditation readiness progression.</p>
+          </div>
+
+          <div className="h-48 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={dynamicTimelineData} margin={{ top: 10, right: 10, left: -30, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorProgress" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#2563eb" stopOpacity={0.2}/>
+                    <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(148, 163, 184, 0.1)" />
+                <XAxis dataKey="month" fontSize={9} tickLine={false} axisLine={false} />
+                <YAxis domain={[0, 100]} fontSize={9} tickLine={false} axisLine={false} />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'hsl(var(--popover))', 
+                    borderColor: 'hsl(var(--border))', 
+                    borderRadius: '8px',
+                    fontSize: '10px' 
+                  }} 
+                />
+                <Area type="monotone" dataKey="progress" name="Readiness %" stroke="#2563eb" strokeWidth={2} fillOpacity={1} fill="url(#colorProgress)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       </div>
 
