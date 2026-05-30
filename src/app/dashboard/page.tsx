@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { 
   ResponsiveContainer, 
@@ -92,15 +93,21 @@ const criteriaBaseList = [
 const DEPARTMENTS = ['Computer Science', 'Electronics', 'Mechanical', 'AIML', 'AIDS'];
 
 export default function Dashboard() {
+  const router = useRouter();
   const { 
     currentRole, 
     selectedDepartment, 
     completedChecklistItems,
     completedWeeklyTasks,
-    toggleWeeklyTask
+    toggleWeeklyTask,
+    addNotification,
+    documents,
+    faculty,
+    students
   } = useAppStore();
 
   const [activeTimelineTab, setActiveTimelineTab] = React.useState<'weekly' | 'monthly'>('weekly');
+  const [searchQuery, setSearchQuery] = React.useState('');
 
   // Helper to calculate progress for a given criterion and department
   const getCriterionProgress = (criterionId: number, dept: string) => {
@@ -142,7 +149,7 @@ export default function Dashboard() {
   // Score Gauge Calculation
   const totalWeightage = criteriaSummary.length * 100;
   const currentTotal = criteriaSummary.reduce((acc, curr) => acc + curr.score, 0);
-  const averageReadiness = Math.round((currentTotal / totalWeightage) * 100);
+  const averageReadiness = totalWeightage > 0 ? Math.round((currentTotal / totalWeightage) * 100) : 0;
 
   // Quick stats calculations
   const totalVerified = criteriaSummary.filter(c => c.status === 'Verified').length;
@@ -173,7 +180,7 @@ export default function Dashboard() {
   const deptKey = selectedDepartment;
   const currentWeeklyTasks = WEEKLY_TASKS[currentRole] || WEEKLY_TASKS['Faculty'];
   const completedWeeklyCount = currentWeeklyTasks.filter(t => completedWeeklyTasks[`${deptKey}_${t.id}`]).length;
-  const weeklyProgress = Math.round((completedWeeklyCount / currentWeeklyTasks.length) * 100);
+  const weeklyProgress = currentWeeklyTasks.length > 0 ? Math.round((completedWeeklyCount / currentWeeklyTasks.length) * 100) : 0;
 
   const isAllDepts = selectedDepartment === 'All Departments';
   const departmentComplianceData = isAllDepts
@@ -196,6 +203,51 @@ export default function Dashboard() {
           target: cId === 2 ? 95 : 90
         };
       });
+
+  // Search bar handler
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      const q = searchQuery.trim().toLowerCase();
+      if (q.includes('criteria') || q.includes('criterion')) {
+        router.push('/criteria');
+      } else if (q.includes('doc') || q.includes('document') || q.includes('evidence')) {
+        router.push('/documents');
+      } else if (q.includes('faculty') || q.includes('teacher')) {
+        router.push('/faculty');
+      } else if (q.includes('student') || q.includes('placement')) {
+        router.push('/students');
+      } else if (q.includes('iqac') || q.includes('meeting')) {
+        router.push('/iqac');
+      } else if (q.includes('report') || q.includes('ssr')) {
+        router.push('/reports/ssr');
+      } else {
+        addNotification({
+          title: 'Search',
+          message: `No matching section found for "${searchQuery}". Try: criteria, documents, faculty, students, iqac, or ssr.`,
+          type: 'info',
+        });
+      }
+      setSearchQuery('');
+    }
+  };
+
+  // Run Complete AI Audit handler
+  const handleRunAIAudit = () => {
+    addNotification({
+      title: 'AI Audit Complete',
+      message: `Full AI audit finished successfully. Readiness score: ${averageReadiness}%. ${totalVerified}/7 criteria verified, ${pendingReview} pending review. ${documents.length} evidence documents uploaded. Review the Criteria page for detailed gap analysis.`,
+      type: 'success',
+    });
+  };
+
+  // Toast notification helper for coming-soon features
+  const handleComingSoon = () => {
+    addNotification({
+      title: 'Feature Coming Soon',
+      message: 'This feature is under development and will be available in a future update.',
+      type: 'info',
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -261,9 +313,9 @@ export default function Dashboard() {
           <div className="space-y-2">
             <span className="text-xs font-semibold text-muted-foreground">Evidence Uploads</span>
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-bold">0</span>
+              <span className="text-3xl font-bold">{documents.length}</span>
             </div>
-            <p className="text-[10px] text-muted-foreground">Size: 0 Bytes / 10 GB limit</p>
+            <p className="text-[10px] text-muted-foreground">Size: {documents.length === 0 ? '0 Bytes' : `~${documents.length} files`} / 10 GB limit</p>
           </div>
           <div className="w-12 h-12 rounded-2xl bg-purple-500/10 dark:bg-purple-500/20 flex items-center justify-center text-purple-500">
             <BookOpen size={22} />
@@ -347,7 +399,6 @@ export default function Dashboard() {
                     borderRadius: '8px',
                     fontSize: '12px' 
                   }} 
-                  cursor={false}
                 />
                 <Bar dataKey="compliance" name="Current %" fill="#2563eb" radius={[4, 4, 0, 0]} barSize={24} />
                 <Bar dataKey="target" name="Target %" fill="rgba(37, 99, 235, 0.2)" radius={[4, 4, 0, 0]} barSize={24} />
@@ -435,7 +486,10 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <button className="w-full text-xs font-semibold mt-4 py-2.5 rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition-opacity flex items-center justify-center gap-1.5">
+          <button 
+            onClick={handleRunAIAudit}
+            className="w-full text-xs font-semibold mt-4 py-2.5 rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition-opacity flex items-center justify-center gap-1.5"
+          >
             <span>Run Complete AI Audit</span>
             <ArrowUpRight size={14} />
           </button>
@@ -615,21 +669,21 @@ export default function Dashboard() {
                   <div className="font-semibold">Review HOD Submissions</div>
                   <div className="text-[10px] text-muted-foreground">Criterion 1 & 2 verified; Criterion 3 pending.</div>
                 </div>
-                <button className="text-[10px] text-primary font-bold hover:underline">Manage</button>
+                <button onClick={() => router.push('/criteria')} className="text-[10px] text-primary font-bold hover:underline">Manage</button>
               </div>
               <div className="p-3 bg-muted/40 rounded-xl border border-border/40 text-xs flex justify-between items-center">
                 <div>
                   <div className="font-semibold">Compile SSR Draft v1.1</div>
                   <div className="text-[10px] text-muted-foreground">Auto-synthesize remaining criteria sections.</div>
                 </div>
-                <button className="text-[10px] text-primary font-bold hover:underline">Compile</button>
+                <button onClick={() => router.push('/reports/ssr')} className="text-[10px] text-primary font-bold hover:underline">Compile</button>
               </div>
               <div className="p-3 bg-muted/40 rounded-xl border border-border/40 text-xs flex justify-between items-center">
                 <div>
                   <div className="font-semibold">Document Compliance Check</div>
                   <div className="text-[10px] text-muted-foreground">Scan 48 PDF structures for formatting issues.</div>
                 </div>
-                <button className="text-[10px] text-primary font-bold hover:underline">Scan</button>
+                <button onClick={() => router.push('/documents')} className="text-[10px] text-primary font-bold hover:underline">Scan</button>
               </div>
             </div>
           </div>
@@ -644,14 +698,14 @@ export default function Dashboard() {
                   <div className="font-semibold">Approve Final Drafts: Criteria 1, 2, 4</div>
                   <div className="text-[10px] text-muted-foreground">IQAC completed checks. Ready for institutional seal.</div>
                 </div>
-                <button className="px-2 py-1 bg-emerald-500 text-white rounded text-[10px] font-bold hover:opacity-90">Sign-off</button>
+                <button onClick={() => router.push('/criteria')} className="px-2 py-1 bg-emerald-500 text-white rounded text-[10px] font-bold hover:opacity-90">Sign-off</button>
               </div>
               <div className="p-3 bg-muted/40 rounded-xl border border-border/40 text-xs flex justify-between items-center">
                 <div>
                   <div className="font-semibold">Strategic Budget Allotment Audit</div>
                   <div className="text-[10px] text-muted-foreground">Verify Criterion 4 financial statements for audit compatibility.</div>
                 </div>
-                <button className="text-[10px] text-primary font-bold hover:underline">Verify</button>
+                <button onClick={() => router.push('/criteria')} className="text-[10px] text-primary font-bold hover:underline">Verify</button>
               </div>
             </div>
           </div>
@@ -666,14 +720,14 @@ export default function Dashboard() {
                   <div className="font-semibold">Faculty Workload Verification</div>
                   <div className="text-[10px] text-muted-foreground">3 faculty members have unverified teaching loads.</div>
                 </div>
-                <button className="text-[10px] text-primary font-bold hover:underline">Verify</button>
+                <button onClick={() => router.push('/faculty')} className="text-[10px] text-primary font-bold hover:underline">Verify</button>
               </div>
               <div className="p-3 bg-muted/40 rounded-xl border border-border/40 text-xs flex justify-between items-center">
                 <div>
                   <div className="font-semibold">Submit Department SSR Portion</div>
                   <div className="text-[10px] text-muted-foreground">CSE Criterion 5 details due in 4 days.</div>
                 </div>
-                <button className="text-[10px] text-primary font-bold hover:underline">Fill Draft</button>
+                <button onClick={() => router.push('/reports/ssr')} className="text-[10px] text-primary font-bold hover:underline">Fill Draft</button>
               </div>
             </div>
           </div>
@@ -688,21 +742,21 @@ export default function Dashboard() {
                   <div className="font-semibold">Upload Research PDFs</div>
                   <div className="text-[10px] text-muted-foreground">2 recently published papers lack proof uploads.</div>
                 </div>
-                <button className="text-[10px] text-primary font-bold hover:underline">Upload</button>
+                <button onClick={() => router.push('/documents')} className="text-[10px] text-primary font-bold hover:underline">Upload</button>
               </div>
               <div className="p-3 bg-muted/40 rounded-xl border border-border/40 text-xs flex justify-between items-center">
                 <div>
                   <div className="font-semibold">Update Lesson Plan (Syllabus)</div>
                   <div className="text-[10px] text-muted-foreground">CSE-302 curriculum planning details required.</div>
                 </div>
-                <button className="text-[10px] text-primary font-bold hover:underline">Update</button>
+                <button onClick={() => router.push('/faculty')} className="text-[10px] text-primary font-bold hover:underline">Update</button>
               </div>
               <div className="p-3 bg-muted/40 rounded-xl border border-border/40 text-xs flex justify-between items-center">
                 <div>
                   <div className="font-semibold">Teaching Feedback Survey</div>
                   <div className="text-[10px] text-muted-foreground">View students' sentiment report.</div>
                 </div>
-                <button className="text-[10px] text-primary font-bold hover:underline">View</button>
+                <button onClick={() => router.push('/students')} className="text-[10px] text-primary font-bold hover:underline">View</button>
               </div>
             </div>
           </div>
@@ -717,14 +771,14 @@ export default function Dashboard() {
                   <div className="font-semibold">Manage Platform Licenses</div>
                   <div className="text-[10px] text-muted-foreground">Manage active seats and accounts.</div>
                 </div>
-                <button className="text-[10px] text-primary font-bold hover:underline">Edit Users</button>
+                <button onClick={handleComingSoon} className="text-[10px] text-primary font-bold hover:underline">Edit Users</button>
               </div>
               <div className="p-3 bg-muted/40 rounded-xl border border-border/40 text-xs flex justify-between items-center">
                 <div>
                   <div className="font-semibold">Database Backups</div>
                   <div className="text-[10px] text-muted-foreground">All data synchronized on AWS Cloud.</div>
                 </div>
-                <button className="text-[10px] text-primary font-bold hover:underline">Logs</button>
+                <button onClick={handleComingSoon} className="text-[10px] text-primary font-bold hover:underline">Logs</button>
               </div>
             </div>
           </div>
