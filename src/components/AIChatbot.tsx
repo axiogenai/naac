@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAppStore } from '@/store/appStore';
 import { 
   MessageSquare, 
   X, 
@@ -19,10 +20,20 @@ interface ChatMessage {
 }
 
 const initialMessages: ChatMessage[] = [
-  { sender: 'bot', text: 'Hello! I am your NAAC Accreditation Intelligence Assistant. How can I help you compile data or audit compliance guidelines today?', timestamp: '12:00 PM' }
+  { sender: 'bot', text: 'Hello! I am your AMG NAAC Accreditation Intelligence Assistant. How can I help you compile data or audit compliance guidelines today?', timestamp: '12:00 PM' }
 ];
 
 export default function AIChatbot() {
+  const { 
+    faculty, 
+    documents, 
+    students, 
+    meetings, 
+    benchmarks, 
+    currentRole, 
+    completedChecklistItems 
+  } = useAppStore();
+
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [inputValue, setInputValue] = useState('');
@@ -49,24 +60,60 @@ export default function AIChatbot() {
     };
 
     setMessages(prev => [...prev, userMsg]);
+    const currentInput = inputValue;
     setInputValue('');
     setIsTyping(true);
 
-    // Simulate AI response based on queries
+    // Simulate AI response based on live global store data
     setTimeout(() => {
-      let replyText = 'I am scanning the database...';
-      const q = userMsg.text.toLowerCase();
+      let replyText = '';
+      const q = currentInput.toLowerCase();
 
-      if (q.includes('criterion 3') || q.includes('research')) {
-        replyText = 'Criterion 3 details UGC care publications, patents, and extension programs. To maximize points, make sure each publication has an attached PDF in the library with DOI links and that your department matches UGC research funding targets.';
-      } else if (q.includes('curricular') || q.includes('criterion 1')) {
-        replyText = 'Criterion 1 tracks Curricular Aspects. You should ensure syllabus files, BOS minutes, elective registries, and feedback reports for 2025-26 are signed by respective department heads and uploaded in the curriculum library.';
-      } else if (q.includes('placement') || q.includes('progression')) {
-        replyText = 'Placements and Student Progression are mapped under Criterion 5.2. Make sure you compile the annual placement spreadsheet and attach official offer letters as evidence in the library. This directly impacts the projected A++ grade score.';
-      } else if (q.includes('missing') || q.includes('gap')) {
-        replyText = 'Based on my latest gap audit, Criterion 3.2 has a publication count shortfall in the Computer Science department, and Criterion 5.1 has 2 scholarship logs awaiting verify checks. Click "AI Gap Analysis" on the dashboard to review.';
+      // Math for dynamic responses
+      const totalFaculty = faculty.length;
+      const phdCount = faculty.filter(f => f.qualification.includes('Ph.D.')).length;
+      const phdPercent = totalFaculty === 0 ? 0 : Math.round((phdCount / totalFaculty) * 100);
+      const totalPublications = faculty.reduce((acc, curr) => acc + curr.publications, 0);
+      const avgPublications = totalFaculty === 0 ? '0.0' : (totalPublications / totalFaculty).toFixed(1);
+
+      const totalStudents = students.length;
+      const placedStudents = students.filter(s => s.placed);
+      const placementRate = totalStudents === 0 ? 0 : Math.round((placedStudents.length / totalStudents) * 100);
+      const totalSalary = placedStudents.reduce((acc, curr) => acc + curr.salaryLPA, 0);
+      const avgSalary = placedStudents.length === 0 ? 0 : (totalSalary / placedStudents.length);
+
+      const totalDocs = documents.length;
+      const verifiedDocs = documents.filter(d => d.status === 'Verified').length;
+      const pendingDocs = totalDocs - verifiedDocs;
+
+      const totalMeetings = meetings.length;
+      const completedMeetings = meetings.filter(m => m.status === 'Completed').length;
+      const scheduledMeetings = totalMeetings - completedMeetings;
+
+      const metBenchmarks = benchmarks.filter(b => b.status === 'Met').length;
+      const shortfallBenchmarks = benchmarks.filter(b => b.status === 'Shortfall').length;
+      const exceededBenchmarks = benchmarks.filter(b => b.status === 'Exceeded').length;
+
+      const totalCheckedItems = Object.keys(completedChecklistItems).filter(k => completedChecklistItems[k]).length;
+
+      if (q.includes('faculty') || q.includes('teacher') || q.includes('staff')) {
+        replyText = `There are currently ${totalFaculty} faculty members registered in the AMG database. Average publication count is ${avgPublications} papers/member, and ${phdPercent}% of faculty hold a Ph.D. qualification.`;
+      } else if (q.includes('document') || q.includes('upload') || q.includes('evidence')) {
+        replyText = `The Documents Hub contains ${totalDocs} uploaded evidence files. Out of these, ${verifiedDocs} are approved & verified, and ${pendingDocs} are awaiting compliance check.`;
+      } else if (q.includes('student') || q.includes('enrollment')) {
+        replyText = `The student progression database records ${totalStudents} registered students. The overall placement rate is ${placementRate}%, with an average package of INR ${avgSalary.toFixed(1)} LPA.`;
+      } else if (q.includes('placement') || q.includes('salary') || q.includes('package')) {
+        replyText = `Student placement rate is currently standing at ${placementRate}%. The average salary package across placed students is INR ${avgSalary.toFixed(1)} LPA.`;
+      } else if (q.includes('meeting') || q.includes('iqac')) {
+        replyText = `We have logged ${totalMeetings} total IQAC board meetings. ${completedMeetings} have completed minutes uploaded, and ${scheduledMeetings} meeting(s) are scheduled/upcoming.`;
+      } else if (q.includes('benchmark') || q.includes('quality') || q.includes('target')) {
+        replyText = `IQAC tracks 5 primary benchmarks: ${exceededBenchmarks} exceeded, ${metBenchmarks} met, and ${shortfallBenchmarks} indicating shortfalls. You can edit compliance targets directly inside the IQAC Management portal.`;
+      } else if (q.includes('readiness') || q.includes('audit') || q.includes('grade') || q.includes('check')) {
+        replyText = `Accreditation readiness audit is live: you have completed ${totalCheckedItems} checklist requirements. Overall compliance score projections place AMG in a favorable target standing. Run a full AI Audit to get exact projected grades.`;
+      } else if (q.includes('help') || q.includes('what can you do')) {
+        replyText = "I can answer specific details about your AMG NAAC compliance progress! Try asking about: 'How many faculty members?', 'What is our student placement rate?', 'Show document upload status', 'How many IQAC meetings are completed?' or 'What is our current benchmark status?'.";
       } else {
-        replyText = "I've logged your query. I am trained on the official NAAC Manual and can help find files, identify evidence gaps, and write SSR chapters. Ask me about specific criteria or document audits!";
+        replyText = `I have received your query: "${currentInput}". According to AMG accreditation registers, you have ${totalFaculty} faculty, ${totalDocs} uploads, and ${totalStudents} students. Ask me specific questions about these counts for detailed reports!`;
       }
 
       const botMsg: ChatMessage = {
@@ -77,7 +124,7 @@ export default function AIChatbot() {
 
       setMessages(prev => [...prev, botMsg]);
       setIsTyping(false);
-    }, 1200);
+    }, 1000);
   };
 
   return (
@@ -100,7 +147,7 @@ export default function AIChatbot() {
                 </div>
                 <div>
                   <h4 className="text-xs font-bold leading-none flex items-center gap-1.5">
-                    <span>NAAC Intel Bot</span>
+                    <span>AMG Intel Bot</span>
                     <Sparkles size={12} className="text-amber-300 animate-pulse" />
                   </h4>
                   <span className="text-[9px] text-white/70 font-semibold mt-0.5 inline-block">Active Assistance</span>
@@ -147,16 +194,28 @@ export default function AIChatbot() {
             {/* PRESETS */}
             <div className="px-4 py-2 border-t border-border/20 flex gap-1.5 overflow-x-auto whitespace-nowrap bg-muted/40 scrollbar-none">
               <button 
-                onClick={() => setInputValue('What is required for Criterion 3?')}
+                onClick={() => { setInputValue('What is our student placement rate?'); }}
                 className="px-2.5 py-1 rounded bg-muted/80 text-[10px] border border-border/40 hover:bg-muted font-semibold"
               >
-                Criterion 3 Help
+                Placement Stats
               </button>
               <button 
-                onClick={() => setInputValue('Show evidence gap analysis')}
+                onClick={() => { setInputValue('How many faculty members hold a Ph.D.?'); }}
                 className="px-2.5 py-1 rounded bg-muted/80 text-[10px] border border-border/40 hover:bg-muted font-semibold"
               >
-                Evidence gaps
+                Faculty Count
+              </button>
+              <button 
+                onClick={() => { setInputValue('Show document upload status'); }}
+                className="px-2.5 py-1 rounded bg-muted/80 text-[10px] border border-border/40 hover:bg-muted font-semibold"
+              >
+                Document Status
+              </button>
+              <button 
+                onClick={() => { setInputValue('What is our overall readiness level?'); }}
+                className="px-2.5 py-1 rounded bg-muted/80 text-[10px] border border-border/40 hover:bg-muted font-semibold"
+              >
+                Overall Readiness
               </button>
             </div>
 
