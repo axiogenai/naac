@@ -320,10 +320,25 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                pathname?.startsWith('/iqac') ? 'IQAC Quality Board' :
                pathname?.startsWith('/reports/ssr') ? 'AI SSR Report Writer' : 'NAIP'}
             </span>
-            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted/50 border border-border/30 text-muted-foreground text-xs w-64 shrink-0">
-              <Search size={14} />
-              <span>Search criteria, files...</span>
-              <span className="ml-auto text-[10px] bg-border px-1.5 py-0.5 rounded">Ctrl+K</span>
+            <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-lg bg-muted/50 border border-border/30 text-muted-foreground text-xs w-64 shrink-0 focus-within:border-primary transition-colors">
+              <Search size={14} className="shrink-0 text-muted-foreground" />
+              <input 
+                type="text"
+                placeholder="Search criteria, files..."
+                className="bg-transparent border-none outline-none w-full text-foreground text-xs placeholder:text-muted-foreground"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const query = e.currentTarget.value.toLowerCase();
+                    if (query.includes('crit')) router.push('/criteria');
+                    else if (query.includes('doc') || query.includes('file') || query.includes('evidence')) router.push('/documents');
+                    else if (query.includes('fac') || query.includes('teach')) router.push('/faculty');
+                    else if (query.includes('stud')) router.push('/students');
+                    else if (query.includes('iqac') || query.includes('meet') || query.includes('bench') || query.includes('feed')) router.push('/iqac');
+                    else if (query.includes('ssr') || query.includes('write') || query.includes('report') || query.includes('chap')) router.push('/reports/ssr');
+                  }
+                }}
+              />
+              <span className="ml-auto text-[10px] bg-border px-1.5 py-0.5 rounded shrink-0">Enter</span>
             </div>
           </div>
 
